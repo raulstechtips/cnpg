@@ -9,6 +9,10 @@ metadata:
     {{- include "cnpg-cluster.labels" . | nindent 4 }}
 spec:
   secretName: {{ printf "%s-internal-tls" .Release.Name }}
+  # CNPG acts on a Secret change only if the Secret has this label, so a renewal reloads Postgres.
+  secretTemplate:
+    labels:
+      cnpg.io/reload: ""
   duration: 8760h # 1 year
   renewBefore: 720h # 30 days
   {{- with .Values.tls.organization }}

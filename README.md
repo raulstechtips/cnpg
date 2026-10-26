@@ -9,7 +9,7 @@ One Helm release makes one CNPG `Cluster` and everything that belongs to it:
 - The `Cluster`, with Postgres parameters calculated from the pod limits, the WAL volume size and the disk type.
 - One `Database` object per entry in `databases`.
 - One `InfisicalStaticSecret` per role (and one for the bootstrap owner). It writes a `kubernetes.io/basic-auth` Secret with `username` = the role name and the password from Infisical. The target uses `creationPolicy: Orphan`: the Secret has no owner, so deleting the `InfisicalStaticSecret` never deletes it.
-- A cert-manager `Certificate` for the `-rw`, `-ro` and `-r` services, from the internal CA.
+- A cert-manager `Certificate` for the `-rw`, `-ro` and `-r` services, from the internal CA. Its Secret gets the `cnpg.io/reload` label (through `secretTemplate`), so CNPG reloads Postgres when cert-manager renews the certificate.
 - A `ScheduledBackup` (volume snapshots, which Longhorn uploads to the S3 backup target), and a retention `CronJob`.
 - Optional PgBouncer `Pooler` objects.
 

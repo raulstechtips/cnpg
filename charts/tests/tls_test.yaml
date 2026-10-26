@@ -10,6 +10,7 @@ tests:
       - isKind: { of: Certificate }
       - equal: { path: metadata.name, value: pg-test-internal-certificate }
       - equal: { path: spec.secretName, value: pg-test-internal-tls }
+      - equal: { path: spec.secretTemplate, value: { labels: { cnpg.io/reload: "" } } }
       - equal: { path: spec.duration, value: 8760h }
       - equal: { path: spec.renewBefore, value: 720h }
       - equal: { path: spec.subject.organizations, value: [raulstechtips] }
