@@ -1,0 +1,9 @@
+project-config:
+  project-name: cnpg-cluster
+  project-description: "Helm chart for one CloudNativePG Postgres cluster"
+  publish-targets: [ghcr]
+  pipeline-steps:
+    helm-test: true
+    trivy-scan: true
+    opengrep-scan: true
+    helm-package-upload: true

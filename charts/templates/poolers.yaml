@@ -1,0 +1,41 @@
+{{- range .Values.poolers }}
+{{- $name := printf "%s-%s" $.Release.Name .name }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "cnpg-cluster.labels" $ | nindent 4 }}
+spec:
+  cluster:
+    name: {{ $.Release.Name }}
+  instances: {{ .instances | default 2 }}
+  type: {{ .type | default "rw" }}
+  pgbouncer:
+    poolMode: {{ .poolMode | default "session" }}
+    {{- with .parameters }}
+    parameters:
+      {{- range $k, $val := . }}
+      {{ $k }}: {{ toString $val | quote }}
+      {{- end }}
+    {{- end }}
+  template:
+    metadata:
+      labels:
+        cnpg-cluster/pooler: {{ $name }}
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  cnpg-cluster/pooler: {{ $name }}
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: pgbouncer
+          image: {{ $.Values.poolerImage }}
+          resources:
+            {{- toYaml (.resources | default $.Values.poolerResources) | nindent 12 }}
+{{- end }}

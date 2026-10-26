@@ -1,0 +1,18 @@
+{{- if .Values.backup.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ printf "%s-scheduled-backup" .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cnpg-cluster.labels" . | nindent 4 }}
+spec:
+  cluster:
+    name: {{ .Release.Name }}
+  schedule: {{ .Values.backup.schedule | quote }}
+  method: volumeSnapshot
+  online: true
+  immediate: true
+  # Backups outlive the schedule: deleting the ScheduledBackup never deletes a restore point.
+  backupOwnerReference: none
+{{- end }}

@@ -1,0 +1,82 @@
+suite: Cluster spec
+templates:
+  - templates/cluster.yaml
+release:
+  name: pg-test
+  namespace: test
+tests:
+  - it: names the Cluster after the release and uses the release namespace
+    asserts:
+      - isKind: { of: Cluster }
+      - equal: { path: metadata.name, value: pg-test }
+      - equal: { path: metadata.namespace, value: test }
+
+  - it: renders the HA, image, storage and superuser defaults
+    asserts:
+      - equal: { path: spec.imageName, value: ghcr.io/cloudnative-pg/postgresql:17.4 }
+      - equal: { path: spec.instances, value: 3 }
+      - equal: { path: spec.affinity, value: { podAntiAffinityType: required, topologyKey: kubernetes.io/hostname } }
+      - equal: { path: spec.primaryUpdateStrategy, value: unsupervised }
+      - equal: { path: spec.primaryUpdateMethod, value: switchover }
+      - equal: { path: spec.enableSuperuserAccess, value: false }
+      - equal: { path: spec.storage, value: { storageClass: longhorn-storage-class-local, size: 10Gi } }
+      - equal: { path: spec.walStorage, value: { storageClass: longhorn-storage-class-local, size: 10Gi } }
+      - equal:
+          path: spec.resources
+          value:
+            requests: { cpu: 10m, memory: 256Mi }
+            limits: { cpu: "2", memory: 1Gi }
+      - isNull: { path: spec.description }
+      - isNull: { path: spec.managed }
+
+  - it: bootstraps the owner <release>-admin with its credentials Secret
+    asserts:
+      - equal:
+          path: spec.bootstrap.initdb
+          value:
+            database: app
+            owner: pg-test-admin
+            secret: { name: pg-test-admin-credentials }
+
+  - it: uses the bootstrap Secret name override
+    set:
+      bootstrap.database: prod
+      bootstrap.passwordSecret.name: pg-test-admin-credentials-secret
+    asserts:
+      - equal: { path: spec.bootstrap.initdb.database, value: prod }
+      - equal: { path: spec.bootstrap.initdb.secret.name, value: pg-test-admin-credentials-secret }
+
+  - it: wires the TLS Secrets when TLS is on
+    asserts:
+      - equal:
+          path: spec.certificates
+          value:
+            serverCASecret: raulstechtips-internal-ca-key-pair
+            serverTLSSecret: pg-test-internal-tls
+
+  - it: drops the certificates section when TLS is off
+    set:
+      tls.enabled: false
+    asserts:
+      - isNull: { path: spec.certificates }
+
+  - it: renders the volume snapshot backup section
+    asserts:
+      - equal:
+          path: spec.backup.volumeSnapshot
+          value:
+            className: longhorn-volume-snapshot-class
+            walClassName: longhorn-volume-snapshot-class
+            snapshotOwnerReference: backup
+
+  - it: drops the WAL snapshot class without a WAL volume
+    set:
+      walStorage.enabled: false
+    asserts:
+      - isNull: { path: spec.backup.volumeSnapshot.walClassName }
+
+  - it: drops the backup section when backups are off
+    set:
+      backup.enabled: false
+    asserts:
+      - isNull: { path: spec.backup }

@@ -1,0 +1,78 @@
+suite: Managed roles and Database objects
+release:
+  name: pg-test
+  namespace: test
+values:
+  - ../ci/all-on-values.yaml
+tests:
+  - it: renders role defaults and the explicit role fields
+    template: templates/cluster.yaml
+    asserts:
+      - equal:
+          path: spec.managed.roles[1]
+          value:
+            name: app-two
+            ensure: present
+            login: true
+            superuser: false
+            createdb: false
+            createrole: false
+            connectionLimit: -1
+            passwordSecret: { name: app-two-credentials }
+      - equal: { path: "spec.managed.roles[0].connectionLimit", value: 30 }
+      - equal: { path: "spec.managed.roles[0].createdb", value: true }
+      - equal: { path: "spec.managed.roles[0].comment", value: First app }
+      - equal: { path: "spec.managed.roles[0].inRoles", value: [pg_read_all_data] }
+      - equal: { path: "spec.managed.roles[0].passwordSecret.name", value: app-one-database-credentials-secret }
+
+  - it: passes the other CNPG role fields through
+    template: templates/cluster.yaml
+    set:
+      databases: []
+      poolers: []
+      roles:
+        - name: reader
+          ensure: absent
+          inherit: false
+          bypassrls: true
+          validUntil: "2030-01-01T00:00:00Z"
+          passwordSecret: { secretPath: /fake/reader }
+    asserts:
+      - equal: { path: "spec.managed.roles[0].ensure", value: absent }
+      - equal: { path: "spec.managed.roles[0].inherit", value: false }
+      - equal: { path: "spec.managed.roles[0].bypassrls", value: true }
+      - equal: { path: "spec.managed.roles[0].validUntil", value: "2030-01-01T00:00:00Z" }
+      - isNull: { path: "spec.managed.roles[0].replication" }
+
+  - it: renders one Database per entry, named after the database, with retain by default
+    template: templates/databases.yaml
+    asserts:
+      - hasDocuments: { count: 3 }
+      - isKind: { of: Database }
+        documentIndex: 0
+      - equal: { path: metadata.name, value: app-one-uat }
+        documentIndex: 1
+      - equal:
+          path: spec
+          value:
+            name: app-one-uat
+            owner: app-one
+            cluster: { name: pg-test }
+            ensure: present
+            databaseReclaimPolicy: retain
+            allowConnections: true
+        documentIndex: 1
+      - equal: { path: spec.encoding, value: UTF8 }
+        documentIndex: 2
+
+  - it: lets a database override the defaults
+    template: templates/databases.yaml
+    set:
+      databases:
+        - name: app-one
+          owner: app-one
+          ensure: absent
+          databaseReclaimPolicy: delete
+    asserts:
+      - equal: { path: spec.ensure, value: absent }
+      - equal: { path: spec.databaseReclaimPolicy, value: delete }

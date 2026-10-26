@@ -1,0 +1,214 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["image", "instances", "resources", "storage", "walStorage", "infisical", "bootstrap", "tls", "backup"],
+  "definitions": {
+    "quantity": { "type": ["string", "number"], "pattern": "^[0-9]+(\\.[0-9]+)?(m|k|M|G|T|Ki|Mi|Gi|Ti)?$" },
+    "name": { "type": "string", "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", "maxLength": 63 },
+    "passwordSecret": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "secretPath": { "type": "string" },
+        "passwordKey": { "type": "string", "minLength": 1 },
+        "environmentSlug": { "type": "string" },
+        "reflectTo": { "type": "array", "items": { "$ref": "#/definitions/name" } }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests": { "type": "object", "additionalProperties": { "$ref": "#/definitions/quantity" } },
+        "limits": { "type": "object", "additionalProperties": { "$ref": "#/definitions/quantity" } }
+      }
+    }
+  },
+  "properties": {
+    "description": { "type": "string" },
+    "image": { "type": "string", "minLength": 1 },
+    "instances": { "type": "integer", "minimum": 1 },
+    "affinity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "podAntiAffinityType": { "enum": ["required", "preferred"] },
+        "topologyKey": { "type": "string", "minLength": 1 }
+      }
+    },
+    "primaryUpdateStrategy": { "enum": ["unsupervised", "supervised"] },
+    "primaryUpdateMethod": { "enum": ["switchover", "restart"] },
+    "enableSuperuserAccess": { "type": "boolean" },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      
+      "properties": {
+        "requests": { "type": "object", "additionalProperties": { "$ref": "#/definitions/quantity" } },
+        "limits": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/quantity" }
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["storageClass", "size", "diskType"],
+      "properties": {
+        "storageClass": { "type": "string", "minLength": 1 },
+        "size": { "$ref": "#/definitions/quantity" },
+        "diskType": { "enum": ["hdd", "ssd"] }
+      }
+    },
+    "walStorage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "storageClass": { "type": "string" },
+        "size": { "$ref": "#/definitions/quantity" }
+      }
+    },
+    "postgresql": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "parameters": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "infisical": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "authRef": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "name": { "type": "string" }, "namespace": { "type": "string" } }
+        },
+        "projectSlug": { "type": "string" },
+        "environmentSlug": { "type": "string" },
+        "refreshInterval": { "type": "string", "minLength": 1 }
+      }
+    },
+    "bootstrap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["database", "passwordSecret"],
+      "properties": {
+        "database": { "type": "string", "minLength": 1 },
+        "passwordSecret": { "$ref": "#/definitions/passwordSecret" }
+      }
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "passwordSecret"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "comment": { "type": "string" },
+          "ensure": { "enum": ["present", "absent"] },
+          "login": { "type": "boolean" },
+          "superuser": { "type": "boolean" },
+          "createdb": { "type": "boolean" },
+          "createrole": { "type": "boolean" },
+          "inherit": { "type": "boolean" },
+          "replication": { "type": "boolean" },
+          "bypassrls": { "type": "boolean" },
+          "connectionLimit": { "type": "integer", "minimum": -1 },
+          "validUntil": { "type": "string" },
+          "inRoles": { "type": "array", "items": { "type": "string" } },
+          "passwordSecret": { "$ref": "#/definitions/passwordSecret" }
+        }
+      }
+    },
+    "databases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "owner"],
+        "properties": {
+          "name": { "$ref": "#/definitions/name" },
+          "owner": { "type": "string", "minLength": 1 },
+          "ensure": { "enum": ["present", "absent"] },
+          "databaseReclaimPolicy": { "enum": ["retain", "delete"] },
+          "allowConnections": { "type": "boolean" },
+          "connectionLimit": { "type": "integer", "minimum": -1 },
+          "isTemplate": { "type": "boolean" },
+          "template": { "type": "string" },
+          "tablespace": { "type": "string" },
+          "encoding": { "type": "string" },
+          "locale": { "type": "string" },
+          "localeProvider": { "type": "string" },
+          "lcCollate": { "type": "string" },
+          "lcCtype": { "type": "string" },
+          "icuLocale": { "type": "string" },
+          "icuRules": { "type": "string" },
+          "builtinLocale": { "type": "string" },
+          "collationVersion": { "type": "string" }
+        }
+      }
+    },
+    "tls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "issuerRef": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "kind"],
+          "properties": { "name": { "type": "string" }, "kind": { "enum": ["ClusterIssuer", "Issuer"] } }
+        },
+        "caSecret": { "type": "string", "minLength": 1 },
+        "organization": { "type": "string" }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "volumeSnapshotClass": { "type": "string", "minLength": 1 },
+        "schedule": { "type": "string", "minLength": 1 },
+        "retention": { "type": "string", "pattern": "^[0-9]+d$" },
+        "retentionJob": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schedule": { "type": "string", "minLength": 1 },
+            "image": { "type": "string", "minLength": 1 },
+            "resources": { "$ref": "#/definitions/resources" }
+          }
+        }
+      }
+    },
+    "poolers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": { "$ref": "#/definitions/name" },
+          "type": { "enum": ["rw", "ro"] },
+          "instances": { "type": "integer", "minimum": 1 },
+          "poolMode": { "enum": ["session", "transaction"] },
+          "parameters": { "type": "object", "additionalProperties": { "type": ["string", "number"] } },
+          "resources": { "$ref": "#/definitions/resources" }
+        }
+      }
+    },
+    "poolerImage": { "type": "string", "minLength": 1 },
+    "poolerResources": { "$ref": "#/definitions/resources" },
+    "global": { "type": "object" }
+  }
+}

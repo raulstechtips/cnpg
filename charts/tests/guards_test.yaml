@@ -1,0 +1,66 @@
+suite: Render guards
+templates:
+  - templates/cluster.yaml
+  - templates/role-secrets.yaml
+release:
+  name: pg-test
+  namespace: test
+values:
+  - ../ci/all-on-values.yaml
+tests:
+  - it: fails without a memory limit
+    template: templates/cluster.yaml
+    set:
+      resources.limits.memory: null
+    asserts:
+      - failedTemplate:
+          errorMessage: resources.limits.memory is required, because the chart calculates the memory parameters from it
+
+  - it: fails without a CPU limit
+    template: templates/cluster.yaml
+    set:
+      resources.limits.cpu: null
+    asserts:
+      - failedTemplate:
+          errorMessage: resources.limits.cpu is required, because the chart calculates the parallel worker parameters from it
+
+  - it: fails when a database owner is not in roles
+    template: templates/cluster.yaml
+    set:
+      databases:
+        - name: orphan
+          owner: ghost
+    asserts:
+      - failedTemplate:
+          errorMessage: database orphan has owner ghost, which is not in roles
+
+  - it: fails when pooler connections reach max_connections
+    template: templates/cluster.yaml
+    set:
+      poolers:
+        - name: big
+          instances: 2
+          parameters:
+            max_db_connections: "50"
+    asserts:
+      - failedTemplate:
+          errorMessage: poolers use 100 connections (instances x max_db_connections), which must be below max_connections (100)
+
+  - it: fails when a role has no Infisical path
+    template: templates/role-secrets.yaml
+    set:
+      roles:
+        - name: nopath
+          passwordSecret: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: passwordSecret.secretPath is required for role nopath
+
+  - it: fails when the Infisical connection is empty
+    template: templates/role-secrets.yaml
+    set:
+      infisical.authRef.name: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: infisical.authRef.name is required
+

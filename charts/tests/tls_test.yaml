@@ -1,0 +1,37 @@
+suite: TLS Certificate
+templates:
+  - templates/certificate.yaml
+release:
+  name: pg-test
+  namespace: test
+tests:
+  - it: issues the server certificate from the internal CA for the 12 service names
+    asserts:
+      - isKind: { of: Certificate }
+      - equal: { path: metadata.name, value: pg-test-internal-certificate }
+      - equal: { path: spec.secretName, value: pg-test-internal-tls }
+      - equal: { path: spec.duration, value: 8760h }
+      - equal: { path: spec.renewBefore, value: 720h }
+      - equal: { path: spec.subject.organizations, value: [raulstechtips] }
+      - equal: { path: spec.issuerRef, value: { name: raulstechtips-internal-ca-issuer, kind: ClusterIssuer } }
+      - equal:
+          path: spec.dnsNames
+          value:
+            - pg-test-rw
+            - pg-test-rw.test
+            - pg-test-rw.test.svc
+            - pg-test-rw.test.svc.cluster.local
+            - pg-test-ro
+            - pg-test-ro.test
+            - pg-test-ro.test.svc
+            - pg-test-ro.test.svc.cluster.local
+            - pg-test-r
+            - pg-test-r.test
+            - pg-test-r.test.svc
+            - pg-test-r.test.svc.cluster.local
+
+  - it: renders no Certificate when TLS is off
+    set:
+      tls.enabled: false
+    asserts:
+      - hasDocuments: { count: 0 }
