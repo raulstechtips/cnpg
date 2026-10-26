@@ -17,6 +17,7 @@ tests:
             superuser: false
             createdb: false
             createrole: false
+            inherit: true
             connectionLimit: -1
             passwordSecret: { name: app-two-credentials }
       - equal: { path: "spec.managed.roles[0].connectionLimit", value: 30 }

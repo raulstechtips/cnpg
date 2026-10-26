@@ -82,9 +82,10 @@ spec:
         superuser: {{ ternary .superuser false (hasKey . "superuser") }}
         createdb: {{ ternary .createdb false (hasKey . "createdb") }}
         createrole: {{ ternary .createrole false (hasKey . "createrole") }}
+        inherit: {{ ternary .inherit true (hasKey . "inherit") }}
         connectionLimit: {{ ternary .connectionLimit -1 (hasKey . "connectionLimit") }}
         {{- $role := . }}
-        {{- range $k := list "inherit" "replication" "bypassrls" "validUntil" }}
+        {{- range $k := list "replication" "bypassrls" "validUntil" }}
         {{- if hasKey $role $k }}
         {{ $k }}: {{ get $role $k | toJson }}
         {{- end }}

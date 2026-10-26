@@ -101,7 +101,7 @@ All other parameters (autovacuum, logging, timeouts) stay at the Postgres defaul
 | `infisical.*` | shared prod connection | `authRef`, `projectSlug`, `environmentSlug`, `refreshInterval`. |
 | `bootstrap.database` | `app` | initdb database. The owner is `<release>-admin`. |
 | `bootstrap.passwordSecret` | see `values.yaml` | Same fields as a role `passwordSecret`, without `reflectTo`. |
-| `roles[]` | `[]` | `name`, `comment`, `ensure`, `login` (true), `superuser` (false), `createdb` (false), `createrole` (false), `connectionLimit` (-1), `inRoles`, `inherit`, `replication`, `bypassrls`, `validUntil`, `passwordSecret`. |
+| `roles[]` | `[]` | `name`, `comment`, `ensure`, `login` (true), `superuser` (false), `createdb` (false), `createrole` (false), `inherit` (true), `connectionLimit` (-1), `inRoles`, `replication`, `bypassrls`, `validUntil`, `passwordSecret`. |
 | `roles[].passwordSecret` | | `secretPath` (required), `passwordKey` (`password`), `name` (`<role>-credentials`), `environmentSlug`, `reflectTo` (namespaces for reflector copies). |
 | `databases[]` | `[]` | `name`, `owner` (must be in `roles`), `ensure`, `databaseReclaimPolicy` (`retain`), `allowConnections` (true), plus the other CNPG Database fields. |
 | `tls.enabled` | `true` | `false` uses the CNPG self-signed CA. |
