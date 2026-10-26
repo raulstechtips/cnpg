@@ -1,0 +1,18 @@
+{{- $defaults := dict "ensure" "present" "databaseReclaimPolicy" "retain" "allowConnections" true -}}
+{{- range .Values.databases }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  # The object name is the database name, so existing Database objects are adopted, not renamed.
+  name: {{ .name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "cnpg-cluster.labels" $ | nindent 4 }}
+spec:
+  name: {{ .name }}
+  owner: {{ .owner }}
+  cluster:
+    name: {{ $.Release.Name }}
+  {{- toYaml (merge (omit . "name" "owner") $defaults) | nindent 2 }}
+{{- end }}

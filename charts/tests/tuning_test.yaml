@@ -1,0 +1,87 @@
+suite: Calculated Postgres parameters
+templates:
+  - templates/cluster.yaml
+release:
+  name: pg-test
+  namespace: test
+tests:
+  - it: calculates the defaults from 1Gi, 2 CPU, a 10Gi WAL volume and hdd
+    asserts:
+      - equal:
+          path: spec.postgresql.parameters
+          value:
+            max_connections: "100"
+            shared_buffers: 256MB
+            effective_cache_size: 768MB
+            maintenance_work_mem: 64MB
+            work_mem: 4MB
+            huge_pages: "off"
+            max_wal_size: 2560MB
+            min_wal_size: 640MB
+            max_slot_wal_keep_size: 5120MB
+            wal_keep_size: 1024MB
+            checkpoint_timeout: 15min
+            wal_compression: lz4
+            jit: "off"
+            random_page_cost: "4"
+            effective_io_concurrency: "2"
+            maintenance_io_concurrency: "10"
+            max_parallel_workers: "2"
+            max_parallel_workers_per_gather: "1"
+            max_parallel_maintenance_workers: "1"
+
+  - it: calculates a bigger cluster from 4Gi, 4 CPU, a 20Gi WAL volume and ssd
+    set:
+      resources.limits.memory: 4Gi
+      resources.limits.cpu: "4"
+      walStorage.size: 20Gi
+      storage.diskType: ssd
+    asserts:
+      - equal: { path: spec.postgresql.parameters.shared_buffers, value: 1024MB }
+      - equal: { path: spec.postgresql.parameters.effective_cache_size, value: 3072MB }
+      - equal: { path: spec.postgresql.parameters.maintenance_work_mem, value: 256MB }
+      - equal: { path: spec.postgresql.parameters.work_mem, value: 10MB }
+      - equal: { path: spec.postgresql.parameters.max_wal_size, value: 5120MB }
+      - equal: { path: spec.postgresql.parameters.min_wal_size, value: 1280MB }
+      - equal: { path: spec.postgresql.parameters.max_slot_wal_keep_size, value: 10240MB }
+      - equal: { path: spec.postgresql.parameters.wal_keep_size, value: 2048MB }
+      - equal: { path: spec.postgresql.parameters.random_page_cost, value: "1.1" }
+      - equal: { path: spec.postgresql.parameters.effective_io_concurrency, value: "200" }
+      - equal: { path: spec.postgresql.parameters.maintenance_io_concurrency, value: "100" }
+      - equal: { path: spec.postgresql.parameters.max_parallel_workers, value: "4" }
+      - equal: { path: spec.postgresql.parameters.max_parallel_workers_per_gather, value: "2" }
+      - equal: { path: spec.postgresql.parameters.max_parallel_maintenance_workers, value: "2" }
+
+  - it: caps maintenance_work_mem at 1GB
+    set:
+      resources.limits.memory: 32Gi
+    asserts:
+      - equal: { path: spec.postgresql.parameters.maintenance_work_mem, value: 1024MB }
+
+  - it: rounds a millicore CPU limit up to whole cores
+    set:
+      resources.limits.cpu: 1500m
+    asserts:
+      - equal: { path: spec.postgresql.parameters.max_parallel_workers, value: "2" }
+      - equal: { path: spec.postgresql.parameters.max_parallel_workers_per_gather, value: "1" }
+
+  - it: uses 25% of storage.size as the WAL budget without a WAL volume
+    set:
+      walStorage.enabled: false
+      storage.size: 20Gi
+    asserts:
+      - equal: { path: spec.postgresql.parameters.max_wal_size, value: 1280MB }
+      - equal: { path: spec.postgresql.parameters.max_slot_wal_keep_size, value: 2560MB }
+      - isNull: { path: spec.walStorage }
+
+  - it: lets postgresql.parameters win, and uses max_connections in the work_mem formula
+    set:
+      postgresql.parameters:
+        max_connections: "20"
+        shared_buffers: 300MB
+        log_min_duration_statement: "1000"
+    asserts:
+      - equal: { path: spec.postgresql.parameters.max_connections, value: "20" }
+      - equal: { path: spec.postgresql.parameters.shared_buffers, value: 300MB }
+      - equal: { path: spec.postgresql.parameters.log_min_duration_statement, value: "1000" }
+      - equal: { path: spec.postgresql.parameters.work_mem, value: 12MB }

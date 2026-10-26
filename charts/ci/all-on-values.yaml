@@ -1,0 +1,47 @@
+# Every chart feature on, with dummy non-secret strings. Used by helm lint, kubeconform and the unit tests.
+description: CI cluster
+enableSuperuserAccess: true
+infisical:
+  authRef:
+    name: fake-auth
+    namespace: fake-auth-namespace
+  projectSlug: fake-project
+  environmentSlug: fake-env
+bootstrap:
+  database: appdb
+  passwordSecret:
+    secretPath: /fake/admin
+roles:
+  - name: app-one
+    comment: First app
+    connectionLimit: 30
+    createdb: true
+    inRoles:
+      - pg_read_all_data
+    passwordSecret:
+      name: app-one-database-credentials-secret
+      secretPath: /fake/app-one
+      passwordKey: APP_ONE_PASSWORD
+      environmentSlug: fake-staging
+      reflectTo:
+        - app-one
+        - app-one-uat
+  - name: app-two
+    passwordSecret:
+      secretPath: /fake/app-two
+databases:
+  - name: app-one
+    owner: app-one
+  - name: app-one-uat
+    owner: app-one
+  - name: app-two
+    owner: app-two
+    encoding: UTF8
+poolers:
+  - name: app-one
+    type: rw
+    instances: 2
+    poolMode: transaction
+    parameters:
+      default_pool_size: "20"
+      max_db_connections: "30"

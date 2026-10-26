@@ -1,0 +1,34 @@
+{{- if .Values.tls.enabled }}
+{{- $ns := .Release.Namespace }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ printf "%s-internal-certificate" .Release.Name }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cnpg-cluster.labels" . | nindent 4 }}
+spec:
+  secretName: {{ printf "%s-internal-tls" .Release.Name }}
+  # CNPG acts on a Secret change only if the Secret has this label, so a renewal reloads Postgres.
+  secretTemplate:
+    labels:
+      cnpg.io/reload: ""
+  duration: 8760h # 1 year
+  renewBefore: 720h # 30 days
+  {{- with .Values.tls.organization }}
+  subject:
+    organizations:
+      - {{ . }}
+  {{- end }}
+  dnsNames:
+    {{- range $svc := list "rw" "ro" "r" }}
+    {{- $host := printf "%s-%s" $.Release.Name $svc }}
+    - {{ $host }}
+    - {{ printf "%s.%s" $host $ns }}
+    - {{ printf "%s.%s.svc" $host $ns }}
+    - {{ printf "%s.%s.svc.cluster.local" $host $ns }}
+    {{- end }}
+  issuerRef:
+    name: {{ .Values.tls.issuerRef.name }}
+    kind: {{ .Values.tls.issuerRef.kind }}
+{{- end }}

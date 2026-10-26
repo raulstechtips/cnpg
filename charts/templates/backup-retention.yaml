@@ -1,0 +1,118 @@
+{{- if .Values.backup.enabled }}
+{{- /*
+CNPG has no retention for volume snapshot backups. This CronJob deletes Backup objects older than
+backup.retention; with snapshotOwnerReference: backup, CNPG then deletes their VolumeSnapshots,
+and the Delete snapshot class deletes the Longhorn backups. The newest completed Backup is never
+deleted, even when it is older than the retention.
+*/ -}}
+{{- $name := printf "%s-backup-retention" .Release.Name }}
+{{- $days := trimSuffix "d" .Values.backup.retention }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cnpg-cluster.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cnpg-cluster.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["backups"]
+    verbs: ["get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cnpg-cluster.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cnpg-cluster.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.retentionJob.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            {{- include "cnpg-cluster.labels" . | nindent 12 }}
+        spec:
+          serviceAccountName: {{ $name }}
+          automountServiceAccountToken: true
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: retention
+              image: {{ .Values.backup.retentionJob.image }}
+              env:
+                - name: NAMESPACE
+                  value: {{ .Release.Namespace | quote }}
+                - name: CLUSTER
+                  value: {{ .Release.Name | quote }}
+                - name: RETENTION_DAYS
+                  value: {{ $days | quote }}
+                - name: HOME
+                  value: /tmp
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  cutoff=$(( $(date -u +%s) - RETENTION_DAYS * 86400 ))
+                  kubectl -n "$NAMESPACE" get backups.postgresql.cnpg.io -o json \
+                    | jq -r --arg c "$CLUSTER" --argjson cutoff "$cutoff" '
+                        [.items[] | select(.spec.cluster.name == $c)
+                          | {n: .metadata.name, p: (.status.phase // ""),
+                             t: ((.status.stoppedAt // .metadata.creationTimestamp) | sub("\\.[0-9]+"; "") | fromdateiso8601)}] as $b
+                        | ([$b[] | select(.p == "completed")] | max_by(.t) | .n) as $newest
+                        | $b[] | select(.t < $cutoff and .n != $newest and (.p == "completed" or .p == "failed")) | .n' \
+                    > /tmp/expired
+                  echo "cluster=$CLUSTER retention=${RETENTION_DAYS}d expired=$(wc -l < /tmp/expired)"
+                  if [ -s /tmp/expired ]; then
+                    xargs kubectl -n "$NAMESPACE" delete backups.postgresql.cnpg.io < /tmp/expired
+                  fi
+              resources:
+                {{- toYaml .Values.backup.retentionJob.resources | nindent 16 }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}
+{{- end }}

@@ -1,0 +1,100 @@
+{{- $v := .Values -}}
+{{- $roleNames := list -}}
+{{- range $v.roles }}{{ $roleNames = append $roleNames .name }}{{ end -}}
+{{- range $v.databases -}}
+{{- if not (has .owner $roleNames) -}}
+{{- fail (printf "database %s has owner %s, which is not in roles" .name .owner) -}}
+{{- end -}}
+{{- end -}}
+{{- $maxConn := int64 (get ($v.postgresql.parameters | default dict) "max_connections" | default "100") -}}
+{{- $poolerConn := 0 -}}
+{{- range $v.poolers -}}
+{{- $p := .parameters | default dict -}}
+{{- if hasKey $p "max_db_connections" -}}
+{{- $poolerConn = add $poolerConn (mul (.instances | default 2) (int64 (get $p "max_db_connections"))) -}}
+{{- end -}}
+{{- end -}}
+{{- if ge (int64 $poolerConn) $maxConn -}}
+{{- fail (printf "poolers use %d connections (instances x max_db_connections), which must be below max_connections (%d)" (int64 $poolerConn) $maxConn) -}}
+{{- end -}}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cnpg-cluster.labels" . | nindent 4 }}
+spec:
+  {{- with $v.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  imageName: {{ $v.image }}
+  instances: {{ $v.instances }}
+  affinity:
+    podAntiAffinityType: {{ $v.affinity.podAntiAffinityType }}
+    topologyKey: {{ $v.affinity.topologyKey }}
+  primaryUpdateStrategy: {{ $v.primaryUpdateStrategy }}
+  primaryUpdateMethod: {{ $v.primaryUpdateMethod }}
+  enableSuperuserAccess: {{ $v.enableSuperuserAccess }}
+  resources:
+    {{- toYaml $v.resources | nindent 4 }}
+  postgresql:
+    parameters:
+      {{- include "cnpg-cluster.parameters" . | nindent 6 }}
+  {{- if $v.tls.enabled }}
+  certificates:
+    serverCASecret: {{ $v.tls.caSecret }}
+    serverTLSSecret: {{ printf "%s-internal-tls" .Release.Name }}
+  {{- end }}
+  bootstrap:
+    initdb:
+      database: {{ $v.bootstrap.database }}
+      owner: {{ include "cnpg-cluster.ownerName" . }}
+      secret:
+        name: {{ include "cnpg-cluster.secretName" (dict "role" (include "cnpg-cluster.ownerName" .) "secret" $v.bootstrap.passwordSecret) }}
+  {{- if $v.backup.enabled }}
+  backup:
+    volumeSnapshot:
+      className: {{ $v.backup.volumeSnapshotClass }}
+      {{- if $v.walStorage.enabled }}
+      walClassName: {{ $v.backup.volumeSnapshotClass }}
+      {{- end }}
+      snapshotOwnerReference: backup
+  {{- end }}
+  storage:
+    storageClass: {{ $v.storage.storageClass }}
+    size: {{ $v.storage.size }}
+  {{- if $v.walStorage.enabled }}
+  walStorage:
+    storageClass: {{ $v.walStorage.storageClass }}
+    size: {{ $v.walStorage.size }}
+  {{- end }}
+  {{- with $v.roles }}
+  managed:
+    roles:
+      {{- range . }}
+      - name: {{ .name }}
+        {{- with .comment }}
+        comment: {{ . | quote }}
+        {{- end }}
+        ensure: {{ .ensure | default "present" }}
+        login: {{ ternary .login true (hasKey . "login") }}
+        superuser: {{ ternary .superuser false (hasKey . "superuser") }}
+        createdb: {{ ternary .createdb false (hasKey . "createdb") }}
+        createrole: {{ ternary .createrole false (hasKey . "createrole") }}
+        inherit: {{ ternary .inherit true (hasKey . "inherit") }}
+        connectionLimit: {{ ternary .connectionLimit -1 (hasKey . "connectionLimit") }}
+        {{- $role := . }}
+        {{- range $k := list "replication" "bypassrls" "validUntil" }}
+        {{- if hasKey $role $k }}
+        {{ $k }}: {{ get $role $k | toJson }}
+        {{- end }}
+        {{- end }}
+        {{- with .inRoles }}
+        inRoles:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        passwordSecret:
+          name: {{ include "cnpg-cluster.secretName" (dict "role" .name "secret" .passwordSecret) }}
+      {{- end }}
+  {{- end }}

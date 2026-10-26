@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cnpg-cluster
+description: "One CloudNativePG Postgres cluster with tuned defaults: roles, databases, Infisical-backed passwords, TLS, volume snapshot backups with retention, and optional PgBouncer poolers."
+type: application
+version: 1.0.0
+appVersion: "17.4"

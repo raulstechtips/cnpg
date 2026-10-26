@@ -1,0 +1,57 @@
+suite: PgBouncer poolers
+templates:
+  - templates/poolers.yaml
+release:
+  name: pg-test
+  namespace: test
+tests:
+  - it: renders no Pooler by default
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: renders a Pooler with defaults and required anti-affinity
+    set:
+      poolers:
+        - name: app
+    asserts:
+      - isKind: { of: Pooler }
+      - equal: { path: metadata.name, value: pg-test-app }
+      - equal: { path: spec.cluster.name, value: pg-test }
+      - equal: { path: spec.instances, value: 2 }
+      - equal: { path: spec.type, value: rw }
+      - equal: { path: spec.pgbouncer, value: { poolMode: session } }
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution
+          value:
+            - labelSelector:
+                matchLabels:
+                  cnpg-cluster/pooler: pg-test-app
+              topologyKey: kubernetes.io/hostname
+      - equal: { path: spec.template.metadata.labels, value: { cnpg-cluster/pooler: pg-test-app } }
+      - equal:
+          path: "spec.template.spec.containers[0]"
+          value:
+            name: pgbouncer
+            image: ghcr.io/cloudnative-pg/pgbouncer:1.25.1
+            resources:
+              requests: { cpu: 10m, memory: 32Mi }
+              limits: { memory: 128Mi }
+
+  - it: passes the mode, type and PgBouncer parameters as strings
+    set:
+      poolers:
+        - name: app
+          type: ro
+          instances: 3
+          poolMode: transaction
+          parameters:
+            default_pool_size: 20
+            max_db_connections: "30"
+    asserts:
+      - equal: { path: spec.type, value: ro }
+      - equal: { path: spec.instances, value: 3 }
+      - equal:
+          path: spec.pgbouncer
+          value:
+            poolMode: transaction
+            parameters: { default_pool_size: "20", max_db_connections: "30" }

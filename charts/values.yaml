@@ -1,0 +1,137 @@
+# Defaults for one CloudNativePG cluster.
+# The Cluster name is the Helm release name (Argo CD: spec.sources[].helm.releaseName),
+# and the namespace is the release namespace.
+
+# Optional free text shown in the Cluster spec.
+description: ""
+
+# Postgres image. A minor update is a reviewed change to this value.
+image: ghcr.io/cloudnative-pg/postgresql:17.4
+
+# One primary and two replicas, never two instances on the same node.
+instances: 3
+affinity:
+  podAntiAffinityType: required
+  topologyKey: kubernetes.io/hostname
+# The operator updates replicas first, then does a switchover.
+primaryUpdateStrategy: unsupervised
+primaryUpdateMethod: switchover
+
+# true -> CNPG creates <release>-superuser with a random password for the postgres user.
+enableSuperuserAccess: false
+
+# Both limits are required: the chart calculates the Postgres parameters from them.
+# memory limit -> shared_buffers, effective_cache_size, maintenance_work_mem, work_mem.
+# cpu limit (rounded up) -> max_parallel_workers*.
+resources:
+  requests:
+    cpu: 10m
+    memory: 256Mi
+  limits:
+    cpu: "2"
+    memory: 1Gi
+
+storage:
+  storageClass: longhorn-storage-class-local
+  size: 10Gi
+  # hdd | ssd -> random_page_cost, effective_io_concurrency, maintenance_io_concurrency.
+  diskType: hdd
+
+# Separate WAL volume. Its size drives max_wal_size, min_wal_size, wal_keep_size and
+# max_slot_wal_keep_size. When disabled, the WAL budget is 25% of storage.size.
+walStorage:
+  enabled: true
+  storageClass: longhorn-storage-class-local
+  size: 10Gi
+
+postgresql:
+  # Any Postgres parameter. A value here wins over the calculated value. Strings only.
+  parameters: {}
+
+# Infisical connection for every role password (shared InfisicalAuth).
+infisical:
+  authRef:
+    name: infisical-prod-universal-auth
+    namespace: default
+  projectSlug: k3s-ntpo
+  # Default environment; a role can override it with passwordSecret.environmentSlug.
+  environmentSlug: prod
+  refreshInterval: 1m
+
+# initdb runs once, when the cluster is created. The owner is "<release>-admin".
+bootstrap:
+  database: app
+  passwordSecret:
+    # Optional Secret name. Default: <release>-admin-credentials.
+    name: ""
+    # Infisical path that holds the owner password. Default: /cnpg/<release>/users/admin.
+    secretPath: ""
+    passwordKey: password
+    # Optional Infisical environment for this secret only.
+    environmentSlug: ""
+
+# Managed roles. Example:
+# roles:
+#   - name: pg-keycloak-admin
+#     comment: Keycloak Database
+#     connectionLimit: 30          # default -1 (no limit)
+#     createdb: false              # default false
+#     passwordSecret:
+#       name: pg-keycloak-database-credentials-secret   # default <role>-credentials
+#       secretPath: /keycloak/postgres
+#       passwordKey: PG_KEYCLOAK_ADMIN_PASSWORD          # default password
+#       environmentSlug: staging                         # default infisical.environmentSlug
+#       reflectTo: [keycloak]                            # reflector copies
+# Removing a role from the list does not drop it. Set ensure: absent to drop it.
+roles: []
+
+# Databases. The owner must be in roles. Default databaseReclaimPolicy: retain.
+# Set ensure: absent to drop a database.
+# databases:
+#   - name: keycloak
+#     owner: pg-keycloak-admin
+databases: []
+
+tls:
+  enabled: true
+  issuerRef:
+    name: raulstechtips-internal-ca-issuer
+    kind: ClusterIssuer
+  caSecret: raulstechtips-internal-ca-key-pair
+  organization: raulstechtips
+
+# Volume snapshot backups (Longhorn backups to the S3 backup target).
+backup:
+  enabled: true
+  volumeSnapshotClass: longhorn-volume-snapshot-class
+  # CNPG cron format, 6 fields with seconds.
+  schedule: "0 0 0 * * *"
+  # Backups older than this are deleted, except the newest completed one.
+  retention: 14d
+  retentionJob:
+    schedule: "0 1 * * *"
+    image: alpine/k8s:1.30.14
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
+
+# PgBouncer poolers. Example:
+# poolers:
+#   - name: sdpm                # Pooler "<release>-sdpm"
+#     type: rw                  # rw | ro
+#     instances: 2
+#     poolMode: transaction     # default session
+#     parameters:
+#       default_pool_size: "20"
+#       max_db_connections: "30"
+poolers: []
+poolerImage: ghcr.io/cloudnative-pg/pgbouncer:1.25.1
+poolerResources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 128Mi

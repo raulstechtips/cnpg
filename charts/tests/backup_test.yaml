@@ -1,0 +1,75 @@
+suite: Scheduled backups and retention
+release:
+  name: pg-test
+  namespace: test
+tests:
+  - it: schedules daily online volume snapshot backups that outlive the schedule
+    template: templates/scheduled-backup.yaml
+    asserts:
+      - isKind: { of: ScheduledBackup }
+      - equal: { path: metadata.name, value: pg-test-scheduled-backup }
+      - equal:
+          path: spec
+          value:
+            cluster: { name: pg-test }
+            schedule: "0 0 0 * * *"
+            method: volumeSnapshot
+            online: true
+            immediate: true
+            backupOwnerReference: none
+
+  - it: renders the retention ServiceAccount, Role, RoleBinding and CronJob
+    template: templates/backup-retention.yaml
+    asserts:
+      - hasDocuments: { count: 4 }
+      - isKind: { of: Role }
+        documentIndex: 1
+      - equal:
+          path: rules
+          value:
+            - apiGroups: ["postgresql.cnpg.io"]
+              resources: ["backups"]
+              verbs: ["get", "list", "delete"]
+        documentIndex: 1
+      - equal: { path: roleRef.name, value: pg-test-backup-retention }
+        documentIndex: 2
+      - isKind: { of: CronJob }
+        documentIndex: 3
+      - equal: { path: spec.schedule, value: "0 1 * * *" }
+        documentIndex: 3
+      - equal: { path: spec.jobTemplate.spec.template.spec.serviceAccountName, value: pg-test-backup-retention }
+        documentIndex: 3
+      - equal: { path: "spec.jobTemplate.spec.template.spec.containers[0].image", value: alpine/k8s:1.30.14 }
+        documentIndex: 3
+      - contains:
+          path: "spec.jobTemplate.spec.template.spec.containers[0].env"
+          content: { name: RETENTION_DAYS, value: "14" }
+        documentIndex: 3
+      - contains:
+          path: "spec.jobTemplate.spec.template.spec.containers[0].env"
+          content: { name: CLUSTER, value: pg-test }
+        documentIndex: 3
+
+  - it: passes a custom retention in days
+    template: templates/backup-retention.yaml
+    set:
+      backup.retention: 30d
+    documentIndex: 3
+    asserts:
+      - contains:
+          path: "spec.jobTemplate.spec.template.spec.containers[0].env"
+          content: { name: RETENTION_DAYS, value: "30" }
+
+  - it: renders no schedule when backups are off
+    template: templates/scheduled-backup.yaml
+    set:
+      backup.enabled: false
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: renders no retention job when backups are off
+    template: templates/backup-retention.yaml
+    set:
+      backup.enabled: false
+    asserts:
+      - hasDocuments: { count: 0 }
