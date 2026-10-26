@@ -130,7 +130,8 @@ spec:
       namespace: {{ $root.Release.Namespace }}
       kind: Secret
       secretType: kubernetes.io/basic-auth
-      creationPolicy: Owner
+      # Orphan: no owner reference, so deleting this object (or losing Infisical) never deletes the Secret.
+      creationPolicy: Orphan
       metadata:
         labels:
           cnpg.io/reload: "true"
