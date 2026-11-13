@@ -6,13 +6,6 @@
 # Existing clusters set this to their current name so an upgrade does not create a new, empty cluster.
 fullnameOverride: ""
 
-# true -> a ClusterRole "<release>-aggregate-to-admin" adds full rights on the namespaced CNPG resources
-# to the built-in "admin" role, so namespace admins such as jenkins-deployer can install charts with a Cluster.
-# Enable it on one release only (pg-prod). A namespace admin cannot create a ClusterRole, so keep it off
-# when the chart is a dependency that Jenkins installs.
-adminAggregateRole:
-  enabled: false
-
 # Optional free text shown in the Cluster spec.
 description: ""
 

@@ -5,13 +5,7 @@ release:
   name: pg-test
   namespace: test
 tests:
-  - it: is not rendered by default
-    asserts:
-      - hasDocuments:
-          count: 0
-  - it: aggregates to admin when enabled
-    set:
-      adminAggregateRole.enabled: true
+  - it: is rendered with default values and aggregates to admin
     asserts:
       - isKind:
           of: ClusterRole
@@ -22,8 +16,6 @@ tests:
           path: metadata.labels["rbac.authorization.k8s.io/aggregate-to-admin"]
           value: "true"
   - it: grants full rights on the namespaced CNPG resources only
-    set:
-      adminAggregateRole.enabled: true
     asserts:
       - equal:
           path: rules
