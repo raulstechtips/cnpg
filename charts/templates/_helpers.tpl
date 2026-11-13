@@ -6,9 +6,14 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" }}
 {{- end -}}
 
-{{/* Bootstrap owner role: "<release>-admin". */}}
+{{/* Cluster name: "<release>-cnpg-cluster", or fullnameOverride when set. Every other name derives from it. */}}
+{{- define "cnpg-cluster.fullname" -}}
+{{- .Values.fullnameOverride | default (printf "%s-cnpg-cluster" .Release.Name) -}}
+{{- end -}}
+
+{{/* Bootstrap owner role: "<fullname>-admin". */}}
 {{- define "cnpg-cluster.ownerName" -}}
-{{- printf "%s-admin" .Release.Name -}}
+{{- printf "%s-admin" (include "cnpg-cluster.fullname" .) -}}
 {{- end -}}
 
 {{/*

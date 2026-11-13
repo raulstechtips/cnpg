@@ -17,7 +17,7 @@ The chart has no upstream dependency. It is published to GHCR (`oci://ghcr.io/ra
 
 ## Use it from Argo CD
 
-The Cluster name is the Helm release name, and the namespace is the release namespace. Set both in the Application:
+The Cluster name is `<release>-cnpg-cluster` (pods `<release>-cnpg-cluster-N`), or `fullnameOverride` when set. The namespace is the release namespace. Set both in the Application:
 
 ```yaml
 spec:
@@ -26,7 +26,7 @@ spec:
       chart: cnpg-cluster
       targetRevision: <chart version>
       helm:
-        releaseName: pg-prod          # the Cluster name
+        releaseName: myapp            # Cluster myapp-cnpg-cluster
         valueFiles:
           - $values/apps/dev/cnpg-prod.yaml
   destination:
@@ -34,6 +34,8 @@ spec:
 ```
 
 If `releaseName` is missing, Argo CD uses the Application name, and the chart makes a new, empty cluster with that name. The Argo diff then shows a complete new Cluster. Do not sync it.
+
+A cluster created before the `-cnpg-cluster` suffix keeps its name with `fullnameOverride` (for example `fullnameOverride: pg-prod`). Without it, an upgrade renames the Cluster, which means a new, empty cluster.
 
 A minimal values file:
 
@@ -55,7 +57,7 @@ databases:
 These must already exist. The chart reads them, but never creates them:
 
 - The `InfisicalAuth` in `infisical.authRef` (default `infisical-prod-universal-auth` in `default`).
-- In Infisical: the owner password at `bootstrap.passwordSecret.secretPath` (default `/cnpg/<release>/users/admin`), and one password per role at its `secretPath`.
+- In Infisical: the owner password at `bootstrap.passwordSecret.secretPath` (default `/cnpg/<cluster name>/users/admin`), and one password per role at its `secretPath`.
 - The cert-manager issuer in `tls.issuerRef` and the CA Secret in `tls.caSecret`, in the release namespace.
 - The VolumeSnapshotClass in `backup.volumeSnapshotClass`.
 
@@ -93,13 +95,14 @@ All other parameters (autovacuum, logging, timeouts) stay at the Postgres defaul
 | `instances` | `3` | Primary plus replicas. |
 | `affinity.podAntiAffinityType` | `required` | One instance per node. |
 | `primaryUpdateStrategy` / `primaryUpdateMethod` | `unsupervised` / `switchover` | Rolling updates end with a switchover. |
-| `enableSuperuserAccess` | `false` | `true` makes `<release>-superuser`. |
+| `fullnameOverride` | `""` | Replaces the Cluster name `<release>-cnpg-cluster`. |
+| `enableSuperuserAccess` | `false` | `true` makes `<cluster name>-superuser`. |
 | `resources` | requests `10m`/`256Mi`, limits `2`/`1Gi` | Both limits are required. |
 | `storage.size` / `.storageClass` / `.diskType` | `10Gi` / Longhorn local / `hdd` | `diskType` is `hdd` or `ssd`. |
 | `walStorage.enabled` / `.size` | `true` / `10Gi` | Separate WAL volume. |
 | `postgresql.parameters` | `{}` | Any parameter. Wins over the calculated value. |
 | `infisical.*` | shared prod connection | `authRef`, `projectSlug`, `environmentSlug`, `refreshInterval`. |
-| `bootstrap.database` | `app` | initdb database. The owner is `<release>-admin`. |
+| `bootstrap.database` | `app` | initdb database. The owner is `<cluster name>-admin`. |
 | `bootstrap.passwordSecret` | see `values.yaml` | Same fields as a role `passwordSecret`, without `reflectTo`. |
 | `roles[]` | `[]` | `name`, `comment`, `ensure`, `login` (true), `superuser` (false), `createdb` (false), `createrole` (false), `inherit` (true), `connectionLimit` (-1), `inRoles`, `replication`, `bypassrls`, `validUntil`, `passwordSecret`. |
 | `roles[].passwordSecret` | | `secretPath` (required), `passwordKey` (`password`), `name` (`<role>-credentials`), `environmentSlug`, `reflectTo` (namespaces for reflector copies). |

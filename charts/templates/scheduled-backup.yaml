@@ -2,13 +2,13 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:
-  name: {{ printf "%s-scheduled-backup" .Release.Name }}
+  name: {{ printf "%s-scheduled-backup" (include "cnpg-cluster.fullname" .) }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "cnpg-cluster.labels" . | nindent 4 }}
 spec:
   cluster:
-    name: {{ .Release.Name }}
+    name: {{ include "cnpg-cluster.fullname" . }}
   schedule: {{ .Values.backup.schedule | quote }}
   method: volumeSnapshot
   online: true

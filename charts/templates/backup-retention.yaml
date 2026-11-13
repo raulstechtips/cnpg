@@ -5,7 +5,7 @@ backup.retention; with snapshotOwnerReference: backup, CNPG then deletes their V
 and the Delete snapshot class deletes the Longhorn backups. The newest completed Backup is never
 deleted, even when it is older than the retention.
 */ -}}
-{{- $name := printf "%s-backup-retention" .Release.Name }}
+{{- $name := printf "%s-backup-retention" (include "cnpg-cluster.fullname" .) }}
 {{- $days := trimSuffix "d" .Values.backup.retention }}
 apiVersion: v1
 kind: ServiceAccount
@@ -80,7 +80,7 @@ spec:
                 - name: NAMESPACE
                   value: {{ .Release.Namespace | quote }}
                 - name: CLUSTER
-                  value: {{ .Release.Name | quote }}
+                  value: {{ include "cnpg-cluster.fullname" . | quote }}
                 - name: RETENTION_DAYS
                   value: {{ $days | quote }}
                 - name: HOME

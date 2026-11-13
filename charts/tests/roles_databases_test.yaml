@@ -58,7 +58,7 @@ tests:
           value:
             name: app-one-uat
             owner: app-one
-            cluster: { name: pg-test }
+            cluster: { name: pg-test-cnpg-cluster }
             ensure: present
             databaseReclaimPolicy: retain
             allowConnections: true

@@ -3,12 +3,12 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ printf "%s-internal-certificate" .Release.Name }}
+  name: {{ printf "%s-internal-certificate" (include "cnpg-cluster.fullname" .) }}
   namespace: {{ $ns }}
   labels:
     {{- include "cnpg-cluster.labels" . | nindent 4 }}
 spec:
-  secretName: {{ printf "%s-internal-tls" .Release.Name }}
+  secretName: {{ printf "%s-internal-tls" (include "cnpg-cluster.fullname" .) }}
   # CNPG acts on a Secret change only if the Secret has this label, so a renewal reloads Postgres.
   secretTemplate:
     labels:
@@ -22,7 +22,7 @@ spec:
   {{- end }}
   dnsNames:
     {{- range $svc := list "rw" "ro" "r" }}
-    {{- $host := printf "%s-%s" $.Release.Name $svc }}
+    {{- $host := printf "%s-%s" (include "cnpg-cluster.fullname" $) $svc }}
     - {{ $host }}
     - {{ printf "%s.%s" $host $ns }}
     - {{ printf "%s.%s.svc" $host $ns }}

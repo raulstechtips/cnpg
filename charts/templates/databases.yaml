@@ -13,6 +13,6 @@ spec:
   name: {{ .name }}
   owner: {{ .owner }}
   cluster:
-    name: {{ $.Release.Name }}
+    name: {{ include "cnpg-cluster.fullname" $ }}
   {{- toYaml (merge (omit . "name" "owner") $defaults) | nindent 2 }}
 {{- end }}

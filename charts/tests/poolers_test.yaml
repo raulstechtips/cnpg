@@ -15,8 +15,8 @@ tests:
         - name: app
     asserts:
       - isKind: { of: Pooler }
-      - equal: { path: metadata.name, value: pg-test-app }
-      - equal: { path: spec.cluster.name, value: pg-test }
+      - equal: { path: metadata.name, value: pg-test-cnpg-cluster-app }
+      - equal: { path: spec.cluster.name, value: pg-test-cnpg-cluster }
       - equal: { path: spec.instances, value: 2 }
       - equal: { path: spec.type, value: rw }
       - equal: { path: spec.pgbouncer, value: { poolMode: session } }
@@ -25,9 +25,9 @@ tests:
           value:
             - labelSelector:
                 matchLabels:
-                  cnpg-cluster/pooler: pg-test-app
+                  cnpg-cluster/pooler: pg-test-cnpg-cluster-app
               topologyKey: kubernetes.io/hostname
-      - equal: { path: spec.template.metadata.labels, value: { cnpg-cluster/pooler: pg-test-app } }
+      - equal: { path: spec.template.metadata.labels, value: { cnpg-cluster/pooler: pg-test-cnpg-cluster-app } }
       - equal:
           path: "spec.template.spec.containers[0]"
           value:

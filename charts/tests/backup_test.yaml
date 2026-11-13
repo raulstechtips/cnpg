@@ -7,11 +7,11 @@ tests:
     template: templates/scheduled-backup.yaml
     asserts:
       - isKind: { of: ScheduledBackup }
-      - equal: { path: metadata.name, value: pg-test-scheduled-backup }
+      - equal: { path: metadata.name, value: pg-test-cnpg-cluster-scheduled-backup }
       - equal:
           path: spec
           value:
-            cluster: { name: pg-test }
+            cluster: { name: pg-test-cnpg-cluster }
             schedule: "0 0 0 * * *"
             method: volumeSnapshot
             online: true
@@ -31,13 +31,13 @@ tests:
               resources: ["backups"]
               verbs: ["get", "list", "delete"]
         documentIndex: 1
-      - equal: { path: roleRef.name, value: pg-test-backup-retention }
+      - equal: { path: roleRef.name, value: pg-test-cnpg-cluster-backup-retention }
         documentIndex: 2
       - isKind: { of: CronJob }
         documentIndex: 3
       - equal: { path: spec.schedule, value: "0 1 * * *" }
         documentIndex: 3
-      - equal: { path: spec.jobTemplate.spec.template.spec.serviceAccountName, value: pg-test-backup-retention }
+      - equal: { path: spec.jobTemplate.spec.template.spec.serviceAccountName, value: pg-test-cnpg-cluster-backup-retention }
         documentIndex: 3
       - equal: { path: "spec.jobTemplate.spec.template.spec.containers[0].image", value: alpine/k8s:1.30.14 }
         documentIndex: 3
@@ -47,7 +47,7 @@ tests:
         documentIndex: 3
       - contains:
           path: "spec.jobTemplate.spec.template.spec.containers[0].env"
-          content: { name: CLUSTER, value: pg-test }
+          content: { name: CLUSTER, value: pg-test-cnpg-cluster }
         documentIndex: 3
 
   - it: passes a custom retention in days

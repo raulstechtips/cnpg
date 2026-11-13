@@ -1,6 +1,10 @@
 # Defaults for one CloudNativePG cluster.
-# The Cluster name is the Helm release name (Argo CD: spec.sources[].helm.releaseName),
-# and the namespace is the release namespace.
+# The Cluster name is "<release>-cnpg-cluster" (Argo CD: spec.sources[].helm.releaseName),
+# and the namespace is the release namespace. Pods are "<release>-cnpg-cluster-N".
+
+# Replaces the whole Cluster name; every other name (services, Secrets, owner role) derives from it.
+# Existing clusters set this to their current name so an upgrade does not create a new, empty cluster.
+fullnameOverride: ""
 
 # Optional free text shown in the Cluster spec.
 description: ""

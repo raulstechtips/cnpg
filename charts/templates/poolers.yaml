@@ -1,5 +1,5 @@
 {{- range .Values.poolers }}
-{{- $name := printf "%s-%s" $.Release.Name .name }}
+{{- $name := printf "%s-%s" (include "cnpg-cluster.fullname" $) .name }}
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Pooler
@@ -10,7 +10,7 @@ metadata:
     {{- include "cnpg-cluster.labels" $ | nindent 4 }}
 spec:
   cluster:
-    name: {{ $.Release.Name }}
+    name: {{ include "cnpg-cluster.fullname" $ }}
   instances: {{ .instances | default 2 }}
   type: {{ .type | default "rw" }}
   pgbouncer:

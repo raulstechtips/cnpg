@@ -5,11 +5,18 @@ release:
   name: pg-test
   namespace: test
 tests:
-  - it: names the Cluster after the release and uses the release namespace
+  - it: names the Cluster <release>-cnpg-cluster and uses the release namespace
     asserts:
       - isKind: { of: Cluster }
-      - equal: { path: metadata.name, value: pg-test }
+      - equal: { path: metadata.name, value: pg-test-cnpg-cluster }
       - equal: { path: metadata.namespace, value: test }
+
+  - it: keeps an existing cluster's name with fullnameOverride
+    set:
+      fullnameOverride: pg-test
+    asserts:
+      - equal: { path: metadata.name, value: pg-test }
+      - equal: { path: spec.bootstrap.initdb.owner, value: pg-test-admin }
 
   - it: renders the HA, image, storage and superuser defaults
     asserts:
@@ -35,8 +42,8 @@ tests:
           path: spec.bootstrap.initdb
           value:
             database: app
-            owner: pg-test-admin
-            secret: { name: pg-test-admin-credentials }
+            owner: pg-test-cnpg-cluster-admin
+            secret: { name: pg-test-cnpg-cluster-admin-credentials }
 
   - it: uses the bootstrap Secret name override
     set:
@@ -52,7 +59,7 @@ tests:
           path: spec.certificates
           value:
             serverCASecret: raulstechtips-internal-ca-key-pair
-            serverTLSSecret: pg-test-internal-tls
+            serverTLSSecret: pg-test-cnpg-cluster-internal-tls
 
   - it: drops the certificates section when TLS is off
     set:
