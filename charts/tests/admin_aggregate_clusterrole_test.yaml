@@ -1,0 +1,41 @@
+suite: CNPG rights for namespace admins
+templates:
+  - templates/admin-aggregate-clusterrole.yaml
+release:
+  name: pg-test
+  namespace: test
+tests:
+  - it: is not rendered by default
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: aggregates to admin when enabled
+    set:
+      adminAggregateRole.enabled: true
+    asserts:
+      - isKind:
+          of: ClusterRole
+      - equal:
+          path: metadata.name
+          value: pg-test-aggregate-to-admin
+      - equal:
+          path: metadata.labels["rbac.authorization.k8s.io/aggregate-to-admin"]
+          value: "true"
+  - it: grants full rights on the namespaced CNPG resources only
+    set:
+      adminAggregateRole.enabled: true
+    asserts:
+      - equal:
+          path: rules
+          value:
+            - apiGroups: [postgresql.cnpg.io]
+              resources:
+                - backups
+                - clusters
+                - databases
+                - imagecatalogs
+                - poolers
+                - publications
+                - scheduledbackups
+                - subscriptions
+              verbs: [get, list, watch, create, update, patch, delete, deletecollection]

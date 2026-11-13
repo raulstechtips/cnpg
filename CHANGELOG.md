@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `fullnameOverride`, which replaces the Cluster name. An existing cluster sets it to its current name (for example `fullnameOverride: pg-prod`) before it upgrades ([SWEALTH-329](https://raulstechtips.atlassian.net/browse/SWEALTH-329)).
+- Add `adminAggregateRole.enabled` (default `false`). It makes a ClusterRole that aggregates to `admin`, so namespace admins such as `jenkins-deployer` can manage namespaced CNPG resources ([SWEALTH-329](https://raulstechtips.atlassian.net/browse/SWEALTH-329)).
+
 ### Changed
+
+- Name the Cluster `<release>-cnpg-cluster`, so its pods are `<release>-cnpg-cluster-N`. The services, Secrets, owner role, certificate and backups take their names from it. An existing cluster must set `fullnameOverride` before it upgrades, or the upgrade creates a new, empty cluster ([SWEALTH-329](https://raulstechtips.atlassian.net/browse/SWEALTH-329)).
 
 ### Fixed
 

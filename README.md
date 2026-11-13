@@ -96,6 +96,7 @@ All other parameters (autovacuum, logging, timeouts) stay at the Postgres defaul
 | `affinity.podAntiAffinityType` | `required` | One instance per node. |
 | `primaryUpdateStrategy` / `primaryUpdateMethod` | `unsupervised` / `switchover` | Rolling updates end with a switchover. |
 | `fullnameOverride` | `""` | Replaces the Cluster name `<release>-cnpg-cluster`. |
+| `adminAggregateRole.enabled` | `false` | `true` makes the ClusterRole `<release>-aggregate-to-admin`, which adds full rights on the namespaced `postgresql.cnpg.io` resources to the built-in `admin` role. Every RoleBinding to `admin` (for example the Jenkins `deployNamespaces` bindings for `jenkins-deployer`) can then manage CNPG resources in its own namespace. Enable it on one release only (`pg-prod`), and never on a chart that Jenkins installs as a dependency: a namespace admin cannot create a ClusterRole. |
 | `enableSuperuserAccess` | `false` | `true` makes `<cluster name>-superuser`. |
 | `resources` | requests `10m`/`256Mi`, limits `2`/`1Gi` | Both limits are required. |
 | `storage.size` / `.storageClass` / `.diskType` | `10Gi` / Longhorn local / `hdd` | `diskType` is `hdd` or `ssd`. |

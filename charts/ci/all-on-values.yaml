@@ -45,3 +45,5 @@ poolers:
     parameters:
       default_pool_size: "20"
       max_db_connections: "30"
+adminAggregateRole:
+  enabled: true
